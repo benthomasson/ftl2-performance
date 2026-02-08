@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+results*.json
+.ftl2-*.txt
+*.pyz
+.venv-ansible/
+.venv-ftl2/

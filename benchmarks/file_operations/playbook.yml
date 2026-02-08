@@ -1,0 +1,22 @@
+---
+- name: File operations benchmark
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Create temp files
+      ansible.builtin.file:
+        path: "/tmp/ftl2_bench_{{ item }}"
+        state: touch
+      loop: "{{ range(10) | list }}"
+
+    - name: Stat temp files
+      ansible.builtin.stat:
+        path: "/tmp/ftl2_bench_{{ item }}"
+      loop: "{{ range(10) | list }}"
+
+    - name: Remove temp files
+      ansible.builtin.file:
+        path: "/tmp/ftl2_bench_{{ item }}"
+        state: absent
+      loop: "{{ range(10) | list }}"

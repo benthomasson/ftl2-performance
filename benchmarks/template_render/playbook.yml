@@ -1,0 +1,27 @@
+---
+- name: Template render benchmark
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    server_name: "bench-server"
+    server_port: 8080
+  tasks:
+    - name: Render config templates
+      ansible.builtin.copy:
+        dest: "/tmp/ftl2_bench_config_{{ item }}.conf"
+        content: |
+          # Server configuration {{ item }}
+          server_name = {{ server_name }}
+          port = {{ server_port + item }}
+          workers = {{ item * 2 }}
+          log_level = info
+          max_connections = {{ item * 100 }}
+        mode: "0644"
+      loop: "{{ range(5) | list }}"
+
+    - name: Clean up
+      ansible.builtin.file:
+        path: "/tmp/ftl2_bench_config_{{ item }}.conf"
+        state: absent
+      loop: "{{ range(5) | list }}"
