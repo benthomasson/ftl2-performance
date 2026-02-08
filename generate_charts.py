@@ -59,7 +59,7 @@ def chart_comparison_bars(results: list[dict], output_dir: Path):
         ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.1,
                 f"{bar.get_height():.2f}s", ha="center", va="bottom", fontsize=10, fontweight="bold")
 
-    ax.set_ylabel("Execution Time (seconds)", fontsize=12)
+    ax.set_ylabel("Execution Time (seconds, lower is better)", fontsize=12)
     ax.set_title("FTL2 vs Ansible — Execution Time", fontsize=14, fontweight="bold", pad=15)
     ax.set_xticks(list(x))
     ax.set_xticklabels(names, fontsize=11)
