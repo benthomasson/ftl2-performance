@@ -1,0 +1,26 @@
+---
+- name: URI requests benchmark
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    base_url: "http://127.0.0.1:9199"
+  tasks:
+    - name: GET /status
+      ansible.builtin.uri:
+        url: "{{ base_url }}/status"
+        method: GET
+        return_content: true
+      loop: "{{ range(10) | list }}"
+
+    - name: POST /data with JSON
+      ansible.builtin.uri:
+        url: "{{ base_url }}/data"
+        method: POST
+        body_format: json
+        body:
+          name: "benchmark-{{ item }}"
+          value: "{{ item }}"
+        return_content: true
+        status_code: 200
+      loop: "{{ range(5) | list }}"

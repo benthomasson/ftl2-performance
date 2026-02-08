@@ -18,9 +18,11 @@ import argparse
 import importlib
 import importlib.util
 import json
+import signal
 import subprocess
 import sys
 import time
+import urllib.request
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).parent
@@ -119,6 +121,43 @@ def run_ftl2_script(script: Path) -> tuple[bool, float, str]:
     return result.returncode == 0, elapsed, result.stderr
 
 
+def start_server(bench_dir: Path) -> subprocess.Popen | None:
+    """Start server.py if it exists in the benchmark directory."""
+    server_script = bench_dir / "server.py"
+    if not server_script.exists():
+        return None
+
+    proc = subprocess.Popen(
+        [sys.executable, str(server_script)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    # Wait for server to be ready
+    for _ in range(50):
+        try:
+            urllib.request.urlopen("http://127.0.0.1:9199/health", timeout=1)
+            return proc
+        except Exception:
+            time.sleep(0.1)
+
+    proc.kill()
+    print("  ERROR: Server failed to start")
+    return None
+
+
+def stop_server(proc: subprocess.Popen | None):
+    """Stop a running server process."""
+    if proc is None:
+        return
+    proc.terminate()
+    try:
+        proc.wait(timeout=3)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
+
+
 def run_benchmark(name: str, runs: int = 3) -> dict:
     """Run a single benchmark, returning timing results."""
     bench_dir = BENCHMARKS_DIR / name
@@ -138,59 +177,71 @@ def run_benchmark(name: str, runs: int = 3) -> dict:
     print(f"  {runs} run(s) each")
     print(f"{'=' * 60}")
 
+    # Start server if benchmark needs one
+    server = start_server(bench_dir)
+    if (bench_dir / "server.py").exists() and server is None:
+        return {"name": name, "description": description, "runs": runs,
+                "ansible": {"error": "server failed"}, "ftl2": {"error": "server failed"}}
+    if server:
+        print("  Server started on :9199")
+
     results = {"name": name, "description": description, "runs": runs}
 
-    # --- Ansible ---
-    playbook = bench_dir / "playbook.yml"
-    if playbook.exists():
-        ansible_times = []
-        inventory = str(bench_dir / "inventory") if (bench_dir / "inventory").exists() else "localhost,"
-        for i in range(runs):
-            success, elapsed, stderr = run_ansible_playbook(playbook, inventory)
-            status = "ok" if success else "FAIL"
-            print(f"  Ansible  run {i+1}/{runs}: {elapsed:.3f}s [{status}]")
-            if not success and i == 0:
-                # Show first failure's stderr for debugging
-                for line in stderr.strip().splitlines()[-3:]:
-                    print(f"           {line}")
-            if success:
-                ansible_times.append(elapsed)
-        if ansible_times:
-            results["ansible"] = {
-                "times": ansible_times,
-                "mean": sum(ansible_times) / len(ansible_times),
-                "min": min(ansible_times),
-                "max": max(ansible_times),
-            }
+    try:
+            # --- Ansible ---
+        playbook = bench_dir / "playbook.yml"
+        if playbook.exists():
+            ansible_times = []
+            inventory = str(bench_dir / "inventory") if (bench_dir / "inventory").exists() else "localhost,"
+            for i in range(runs):
+                success, elapsed, stderr = run_ansible_playbook(playbook, inventory)
+                status = "ok" if success else "FAIL"
+                print(f"  Ansible  run {i+1}/{runs}: {elapsed:.3f}s [{status}]")
+                if not success and i == 0:
+                    # Show first failure's stderr for debugging
+                    for line in stderr.strip().splitlines()[-3:]:
+                        print(f"           {line}")
+                if success:
+                    ansible_times.append(elapsed)
+            if ansible_times:
+                results["ansible"] = {
+                    "times": ansible_times,
+                    "mean": sum(ansible_times) / len(ansible_times),
+                    "min": min(ansible_times),
+                    "max": max(ansible_times),
+                }
+            else:
+                results["ansible"] = {"error": "all runs failed"}
         else:
-            results["ansible"] = {"error": "all runs failed"}
-    else:
-        print("  Ansible: no playbook.yml found, skipping")
+            print("  Ansible: no playbook.yml found, skipping")
 
-    # --- FTL2 ---
-    ftl2_script = bench_dir / "ftl2_script.py"
-    if ftl2_script.exists():
-        ftl2_times = []
-        for i in range(runs):
-            success, elapsed, stderr = run_ftl2_script(ftl2_script)
-            status = "ok" if success else "FAIL"
-            print(f"  FTL2     run {i+1}/{runs}: {elapsed:.3f}s [{status}]")
-            if not success and i == 0:
-                for line in stderr.strip().splitlines()[-3:]:
-                    print(f"           {line}")
-            if success:
-                ftl2_times.append(elapsed)
-        if ftl2_times:
-            results["ftl2"] = {
-                "times": ftl2_times,
-                "mean": sum(ftl2_times) / len(ftl2_times),
-                "min": min(ftl2_times),
-                "max": max(ftl2_times),
-            }
+        # --- FTL2 ---
+        ftl2_script = bench_dir / "ftl2_script.py"
+        if ftl2_script.exists():
+            ftl2_times = []
+            for i in range(runs):
+                success, elapsed, stderr = run_ftl2_script(ftl2_script)
+                status = "ok" if success else "FAIL"
+                print(f"  FTL2     run {i+1}/{runs}: {elapsed:.3f}s [{status}]")
+                if not success and i == 0:
+                    for line in stderr.strip().splitlines()[-3:]:
+                        print(f"           {line}")
+                if success:
+                    ftl2_times.append(elapsed)
+            if ftl2_times:
+                results["ftl2"] = {
+                    "times": ftl2_times,
+                    "mean": sum(ftl2_times) / len(ftl2_times),
+                    "min": min(ftl2_times),
+                    "max": max(ftl2_times),
+                }
+            else:
+                results["ftl2"] = {"error": "all runs failed"}
         else:
-            results["ftl2"] = {"error": "all runs failed"}
-    else:
-        print("  FTL2: no ftl2_script.py found, skipping")
+            print("  FTL2: no ftl2_script.py found, skipping")
+
+    finally:
+        stop_server(server)
 
     # --- Summary ---
     if "mean" in results.get("ansible", {}) and "mean" in results.get("ftl2", {}):
