@@ -66,20 +66,14 @@ def setup_venvs():
     # --- FTL2 venv ---
     if not FTL2_VENV.exists():
         print(f"Creating FTL2 venv at {FTL2_VENV}...")
-        venv.create(str(FTL2_VENV), with_pip=True)
+        subprocess.run(["uv", "venv", str(FTL2_VENV)], check=True)
     else:
         print(f"FTL2 venv exists at {FTL2_VENV}")
 
-    # Install ftl2 in editable mode from the sibling repo
-    ftl2_repo = Path.home() / "git" / "faster-than-light2"
-    if not ftl2_repo.exists():
-        print(f"ERROR: FTL2 repo not found at {ftl2_repo}")
-        print("  Clone it or set FTL2_REPO env var")
-        sys.exit(1)
-
-    print(f"Installing ftl2 from {ftl2_repo}...")
+    print("Installing ftl2 from GitHub...")
     subprocess.run(
-        [str(get_venv_python(FTL2_VENV)), "-m", "pip", "install", "-q", "-e", str(ftl2_repo)],
+        ["uv", "pip", "install", "--python", str(get_venv_python(FTL2_VENV)),
+         "ftl2 @ git+https://github.com/benthomasson/ftl2"],
         check=True,
     )
 

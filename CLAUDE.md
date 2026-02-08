@@ -18,7 +18,7 @@ benchmarks/
         playbook.yml          # Ansible version
         ftl2_script.py        # FTL2 version
 .venv-ansible/                # clean ansible-core (gitignored)
-.venv-ftl2/                   # ftl2 editable install (gitignored)
+.venv-ftl2/                   # ftl2 installed from GitHub (gitignored)
 ```
 
 ## Commands
