@@ -51,14 +51,24 @@ DESCRIPTION = "Short description for the summary table"
 
 The runner times each side independently using its own venv's Python interpreter.
 
-## Sample results
+## Results
 
-```
-  Benchmark                         Ansible       FTL2    Speedup
-  ------------------------------ ---------- ---------- ----------
-  file_operations                    6.444s     0.628s      10.3x
-  local_facts                        0.747s     0.224s       3.3x
-  template_render                    3.308s     0.199s      16.6x
+![FTL2 vs Ansible execution time comparison](charts/comparison.png)
+
+![FTL2 speedup over Ansible](charts/speedup.png)
+
+![Individual run times](charts/runs.png)
+
+Speedup scales with task count. Single-module overhead is ~4x (startup cost), but multi-task benchmarks show 14-17x because FTL2 avoids Ansible's per-task subprocess fork.
+
+### Generating charts
+
+```bash
+# Run benchmarks and save results
+python3 run_benchmark.py --runs 5 --json results.json
+
+# Generate charts (requires matplotlib in .venv-ftl2)
+.venv-ftl2/bin/python generate_charts.py
 ```
 
-Speedup scales with task count. Single-module overhead is ~3x (startup cost), but multi-task benchmarks show 10-17x because FTL2 avoids Ansible's per-task subprocess fork.
+Charts are written to `charts/`.
