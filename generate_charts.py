@@ -148,7 +148,7 @@ def chart_individual_runs(results: list[dict], output_dir: Path):
         ax.set_xticks([1, 2])
         ax.set_xticklabels(["Ansible", "FTL2"], fontsize=10)
         ax.set_title(name, fontsize=11, fontweight="bold")
-        ax.set_ylabel("Time (s)", fontsize=10)
+        ax.set_ylabel("Time (s, lower is better)", fontsize=10)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.set_xlim(0.4, 2.6)
